@@ -1,0 +1,4 @@
+(executable
+  (name gen_json_string)
+  (libraries yojson ppx_deriving_yojson.runtime)
+  (preprocess (pps ppx_deriving_yojson)))
