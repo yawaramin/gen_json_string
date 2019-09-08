@@ -9,7 +9,7 @@ The following instructions are for development use.
 
 You will need opam (version 2) and dune (a recent version). Run:
 
-    opam switch create --locked
+    opam switch create . --locked
     opam install . --deps-only --locked
 
 ### Build
