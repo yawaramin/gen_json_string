@@ -67,7 +67,7 @@ let rec gen_json_string {typ; items; num_items; required; properties} =
 and field_pair required (name, value) =
   match json_schema_of_yojson value, Array.mem name required with
   | Ok schema, is_required when is_required || Random.bool () ->
-    Some (name ^ ": " ^ gen_json_string schema)
+    Some ({|"|} ^ name ^ {|": |} ^ gen_json_string schema)
   | _ -> None
 
 let () =
