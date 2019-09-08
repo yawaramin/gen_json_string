@@ -1,4 +1,4 @@
 (executable
   (name gen_json_string)
-  (libraries yojson ppx_deriving_yojson.runtime)
+  (libraries yojson ppx_deriving_yojson.runtime qcheck-core)
   (preprocess (pps ppx_deriving_yojson)))

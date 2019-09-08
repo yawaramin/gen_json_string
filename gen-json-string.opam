@@ -11,6 +11,8 @@ depends: [
   "dune" {build & >= "1.8.0"}
   "ocaml" {>= "4.06.0"}
   "ppx_deriving_yojson" {>= "3.5.1" & < "4.0.0"}
+  "qcheck-core" {>= "0.10" & < "1.0"}
+  "regenerate" {>= "0.1" & < "1.0"}
   "yojson" {>= "1.7.0" & < "2.0.0"}
 ]
 build: [

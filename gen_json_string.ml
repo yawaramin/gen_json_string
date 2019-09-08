@@ -10,6 +10,10 @@ let get_or_else default = function
   | Some value -> value
   | None -> default
 
+let map_or_else default f = function
+  | Some value -> f value
+  | None -> default
+
 let filter_map f list = list
   |> List.map f
   |> List.filter (function Some _ -> true | None -> false)
@@ -18,67 +22,78 @@ let filter_map f list = list
     | None ->
       failwith "This branch is not reachable because all Nones have already been filtered out")
 
-let random_length () = Random.int 31
-
-let rec random_char () = match Random.int 94 + 33 with
-  (* Can't put backslash or double-quote separately in a JSON string *)
-  | 34 | 92 -> random_char ()
-  (* Other characters OK *)
-  | int -> char_of_int int
-
-let random_string () =
-  String.init (random_length ()) (fun _ -> random_char ())
+let sequence_gen =
+  let open QCheck.Gen in
+  []
+  |> return
+  |> List.fold_left (fun list_gen gen -> map2 List.cons gen list_gen)
 
 let assert_obj_fields required names =
   let names = Array.of_list names in
   if Array.exists (fun name -> not (Array.mem name names)) required
   then failwith "Object must contain all required properties"
 
-let rec gen_json_string {typ; items; num_items; required; properties} =
+let null_schema = {
+  typ = "null";
+  items = None;
+  num_items = None;
+  required = [||];
+  properties = `Assoc [];
+}
+
+let rec gen_json_char () =
+  let open QCheck.Gen in
+  int_range 33 127 >>= function
+    | 34 | 92 -> gen_json_char ()
+    | int -> int |> char_of_int |> return
+
+let int10 = QCheck.Gen.int_bound 10
+
+let rec gen_json_string {typ; items; num_items; required; properties; _} =
+  let open QCheck.Gen in
   match typ with
-  | "null" -> "null"
-  | "string" -> {|"|} ^ random_string () ^ {|"|}
-  | "number" -> 10. |> Random.float |> string_of_float
-  | "integer" -> () |> random_length |> string_of_int
-  | "boolean" -> () |> Random.bool |> string_of_bool
+  | "null" -> return "null"
+  | "string" ->
+    map
+      (fun string -> {|"|} ^ string ^ {|"|})
+      (string_size ~gen:(gen_json_char ()) int10)
+  | "number" -> map string_of_float float
+  | "integer" -> map string_of_int nat
+  | "boolean" -> map string_of_bool bool
   | "array" ->
-    let schema = get_or_else
-      {
-        typ = "null";
-        items = None;
-        num_items = None;
-        required = [||];
-        properties = `Assoc [];
-      }
-      items
-    in
-    let num_items = get_or_else (random_length ()) num_items in
-    let commalist = (fun _ -> gen_json_string schema)
-      |> List.init num_items
-      |> String.concat ", "
-    in
-    "[" ^ commalist ^ "]"
+    let num_items = map_or_else int10 return num_items in
+    items
+    |> get_or_else null_schema
+    |> gen_json_string
+    |> list_size num_items
+    |> map (fun commalist -> "[" ^ String.concat ", " commalist ^ "]")
   | "object" ->
-    let commalist = match properties with
+    begin match properties with
       | `Assoc list ->
         list |> List.map fst |> assert_obj_fields required;
-        list |> filter_map (field_pair required) |> String.concat ", "
+        list
+        |> filter_map (gen_field_pair required)
+        |> sequence_gen
+        |> map (fun commalist ->
+          "{" ^ String.concat ", " (List.rev commalist) ^ "}")
       | _ -> failwith "Invalid properties"
-    in
-    "{" ^ commalist ^ "}"
+    end
   | _ -> failwith "Invalid JSON schema type"
 
-and field_pair required (name, value) =
+and gen_field_pair required (name, value) =
   match json_schema_of_yojson value, Array.mem name required with
   | Ok schema, is_required when is_required || Random.bool () ->
-    Some ({|"|} ^ name ^ {|": |} ^ gen_json_string schema)
+    let field_pair = schema
+      |> gen_json_string
+      |> QCheck.Gen.map (fun value -> {|"|} ^ name ^ {|": |} ^ value)
+    in
+    Some field_pair
   | _ -> None
 
 let () =
-  Random.self_init ();
   let output =
     match stdin |> Yojson.Safe.from_channel |> json_schema_of_yojson with
-    | Ok schema -> gen_json_string schema
+    | Ok schema -> QCheck.Gen.generate1 (gen_json_string schema)
     | Error msg -> failwith msg
   in
   print_endline output
