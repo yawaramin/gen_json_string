@@ -22,4 +22,4 @@ Run:
 
 Run:
 
-    echo '{"type": "object", "required": ["name", "age"], "properties": {"name": {"type": "string"}, "age": {"type": "int"}, "likes": {"type": "array", "items": {"type": "string"}}}}' | ./_build/default/gen_json_string.exe
+    echo '{"type": "object", "required": ["name", "age"], "properties": {"name": {"type": "string"}, "age": {"type": "integer"}, "likes": {"type": "array", "items": {"type": "string"}}}}' | ./_build/default/gen_json_string.exe

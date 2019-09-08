@@ -20,7 +20,11 @@ let filter_map f list = list
 
 let random_length () = Random.int 31
 
-let random_char () = char_of_int (Random.int 94 + 33)
+let rec random_char () = match Random.int 94 + 33 with
+  (* Can't put backslash or double-quote separately in a JSON string *)
+  | 34 | 92 -> random_char ()
+  (* Other characters OK *)
+  | int -> char_of_int int
 
 let random_string () =
   String.init (random_length ()) (fun _ -> random_char ())
@@ -35,7 +39,7 @@ let rec gen_json_string {typ; items; num_items; required; properties} =
   | "null" -> "null"
   | "string" -> {|"|} ^ random_string () ^ {|"|}
   | "number" -> 10. |> Random.float |> string_of_float
-  | "int" -> () |> random_length |> string_of_int
+  | "integer" -> () |> random_length |> string_of_int
   | "boolean" -> () |> Random.bool |> string_of_bool
   | "array" ->
     let schema = get_or_else
