@@ -45,7 +45,7 @@ let rec gen_json_char () =
 
 let int10 = QCheck.Gen.int_bound 10
 
-let rec gen_json_string {typ; items; num_items; required; properties; _} =
+let rec gen_json_string { typ; items; num_items; required; properties; _ } =
   let open QCheck.Gen in
   match typ with
   | "null" -> return "null"
@@ -72,13 +72,13 @@ let rec gen_json_string {typ; items; num_items; required; properties; _} =
         |> sequence_gen
         |> map (fun commalist ->
           "{" ^ String.concat ", " (List.rev commalist) ^ "}")
-      | _ -> failwith "Invalid properties"
+      | _ -> invalid_arg "Invalid properties"
     end
-  | _ -> failwith "Invalid JSON schema type"
+  | _ -> invalid_arg "Invalid JSON schema type"
 
 and gen_field_pair required (name, value) =
-  match json_schema_of_yojson value, Array.mem name required with
-  | Ok schema, is_required when is_required || Random.bool () ->
+  match json_schema_of_yojson value with
+  | Ok schema when Array.mem name required || Random.bool () ->
     let field_pair = schema
       |> gen_json_string
       |> QCheck.Gen.map (fun value -> {|"|} ^ name ^ {|": |} ^ value)
@@ -87,10 +87,11 @@ and gen_field_pair required (name, value) =
   | _ -> None
 
 let () =
+  Random.self_init ();
   let output =
     match stdin |> Yojson.Safe.from_channel |> json_schema_of_yojson with
     | Ok schema -> QCheck.Gen.generate1 (gen_json_string schema)
-    | Error msg -> failwith msg
+    | Error msg -> invalid_arg msg
   in
   print_endline output
 
