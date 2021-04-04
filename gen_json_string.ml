@@ -3,10 +3,10 @@ let default_length = 10
 type json_schema = {
   typ : string [@key "type"];
   items : (json_schema option [@default None]);
-  num_items : (int [@key "numItems"] [@default default_length]);
+  num_items : (int [@default default_length]) [@key "numItems"];
   required : (string array [@default [||]]);
   properties : (Yojson.Safe.t [@default `Assoc []]);
-  max_length : (int [@key "maxLength"] [@default default_length]);
+  max_length : (int [@default default_length]) [@key "maxLength"];
 } [@@deriving of_yojson { exn = true }]
 
 let get_or_else default = function
