@@ -10,10 +10,6 @@ let get_or_else default = function
   | Some value -> value
   | None -> default
 
-let map_or_else default f = function
-  | Some value -> f value
-  | None -> default
-
 let filter_map f list = list
   |> List.map f
   |> List.filter (function Some _ -> true | None -> false)
@@ -31,7 +27,7 @@ let sequence_gen =
 let assert_obj_fields required names =
   let names = Array.of_list names in
   if Array.exists (fun name -> not (Array.mem name names)) required
-  then failwith "Object must contain all required properties"
+  then invalid_arg "Object must contain all required properties"
 
 let null_schema = {
   typ = "null";
@@ -61,7 +57,7 @@ let rec gen_json_string {typ; items; num_items; required; properties; _} =
   | "integer" -> map string_of_int nat
   | "boolean" -> map string_of_bool bool
   | "array" ->
-    let num_items = map_or_else int10 return num_items in
+    let num_items = Option.fold ~none:int10 ~some:return num_items in
     items
     |> get_or_else null_schema
     |> gen_json_string
@@ -97,3 +93,4 @@ let () =
     | Error msg -> failwith msg
   in
   print_endline output
+

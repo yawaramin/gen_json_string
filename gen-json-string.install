@@ -1,9 +1,0 @@
-lib: [
-  "_build/install/default/lib/gen-json-string/META"
-  "_build/install/default/lib/gen-json-string/dune-package"
-  "_build/install/default/lib/gen-json-string/opam"
-]
-doc: [
-  "_build/install/default/doc/gen-json-string/LICENSE"
-  "_build/install/default/doc/gen-json-string/README.md"
-]

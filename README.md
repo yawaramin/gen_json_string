@@ -1,16 +1,15 @@
-## gen-json-string
+## gen_json_string
 
-OCaml CLI tool to generate random JSON value given a JSON Schema as input.
-Currently supports a very small subset of JSON Schema.
+OCaml CLI tool to generate random JSON value given a JSON Schema as
+input. Currently supports a very small subset of JSON Schema.
 
-The following instructions are for development use.
+### License
+
+GNU GPL v3 or later.
 
 ### Setup
 
-You will need opam (version 2) and dune (a recent version). Run:
-
-    opam switch create . --locked
-    opam install . --deps-only --locked
+Ensure that you have the dependencies listed in `dune-project`.
 
 ### Build
 
@@ -22,4 +21,5 @@ Run:
 
 Run:
 
-    echo '{"type": "object", "required": ["name", "age"], "properties": {"name": {"type": "string"}, "age": {"type": "integer"}, "likes": {"type": "array", "items": {"type": "string"}}}}' | ./_build/default/gen_json_string.exe
+    dune exec ./gen_json_string.exe <<<'{"type": "object", "required": ["name", "age"], "properties": {"name": {"type": "string"}, "age": {"type": "integer"}, "likes": {"type": "array", "items": {"type": "string"}}}}'
+
