@@ -1,10 +1,13 @@
+let default_length = 10
+
 type json_schema = {
   typ : string [@key "type"];
   items : (json_schema option [@default None]);
-  num_items : (int option [@key "numItems"] [@default None]);
+  num_items : (int [@key "numItems"] [@default default_length]);
   required : (string array [@default [||]]);
   properties : (Yojson.Safe.t [@default `Assoc []]);
-} [@@deriving of_yojson]
+  max_length : (int [@key "maxLength"] [@default default_length]);
+} [@@deriving of_yojson { exn = true }]
 
 let get_or_else default = function
   | Some value -> value
@@ -24,9 +27,10 @@ let assert_obj_fields required names =
 let null_schema = {
   typ = "null";
   items = None;
-  num_items = None;
+  num_items = default_length;
   required = [||];
   properties = `Assoc [];
+  max_length = default_length;
 }
 
 let rec gen_json_char () =
@@ -35,25 +39,34 @@ let rec gen_json_char () =
     | 34 | 92 -> gen_json_char ()
     | int -> int |> char_of_int |> return
 
-let int10 = QCheck.Gen.int_bound 10
-
-let rec gen_json_string { typ; items; num_items; required; properties; _ } =
+let rec gen_json_string {
+  typ;
+  items;
+  num_items;
+  required;
+  properties;
+  max_length;
+  _
+} =
   let open QCheck.Gen in
   match typ with
-  | "null" -> return "null"
+  | "null" ->
+    return "null"
   | "string" ->
     map
       (fun string -> {|"|} ^ string ^ {|"|})
-      (string_size ~gen:(gen_json_char ()) int10)
-  | "number" -> map string_of_float float
-  | "integer" -> map string_of_int nat
-  | "boolean" -> map string_of_bool bool
+      (string_size ~gen:(gen_json_char ()) (int_bound max_length))
+  | "number" ->
+    map string_of_float float
+  | "integer" ->
+    map string_of_int nat
+  | "boolean" ->
+    map string_of_bool bool
   | "array" ->
-    let num_items = Option.fold ~none:int10 ~some:return num_items in
     items
     |> get_or_else null_schema
     |> gen_json_string
-    |> list_size num_items
+    |> list_size (return num_items)
     |> map (fun commalist -> "[" ^ String.concat ", " commalist ^ "]")
   | "object" ->
     begin match properties with
@@ -66,24 +79,24 @@ let rec gen_json_string { typ; items; num_items; required; properties; _ } =
           "{" ^ String.concat ", " (List.rev commalist) ^ "}")
       | _ -> invalid_arg "Invalid properties"
     end
-  | _ -> invalid_arg "Invalid JSON schema type"
+  | _ ->
+    invalid_arg "Invalid JSON schema type"
 
 and gen_field_pair required (name, value) =
-  match json_schema_of_yojson value with
-  | Ok schema when Array.mem name required || Random.bool () ->
-    let field_pair = schema
+  if Array.mem name required || Random.bool () then
+    Some (value
+      |> json_schema_of_yojson_exn
       |> gen_json_string
-      |> QCheck.Gen.map (fun value -> {|"|} ^ name ^ {|": |} ^ value)
-    in
-    Some field_pair
-  | _ -> None
+      |> QCheck.Gen.map (fun value -> {|"|} ^ name ^ {|": |} ^ value))
+  else
+    None
 
 let () =
   Random.self_init ();
-  let output =
-    match stdin |> Yojson.Safe.from_channel |> json_schema_of_yojson with
-    | Ok schema -> QCheck.Gen.generate1 (gen_json_string schema)
-    | Error msg -> invalid_arg msg
-  in
-  print_endline output
+  stdin
+  |> Yojson.Safe.from_channel
+  |> json_schema_of_yojson_exn
+  |> gen_json_string
+  |> QCheck.Gen.generate1 ~rand:(Random.State.make_self_init ())
+  |> print_endline
 

@@ -3,6 +3,8 @@
 OCaml CLI tool to generate random JSON value given a JSON Schema as
 input. Currently supports a very small subset of JSON Schema.
 
+Ref. https://json-schema.org/draft/2020-12/json-schema-core.html
+
 ### License
 
 GNU GPL v3 or later.
