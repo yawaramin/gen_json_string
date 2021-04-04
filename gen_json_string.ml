@@ -10,14 +10,6 @@ let get_or_else default = function
   | Some value -> value
   | None -> default
 
-let filter_map f list = list
-  |> List.map f
-  |> List.filter (function Some _ -> true | None -> false)
-  |> List.map (function
-    | Some value -> value
-    | None ->
-      failwith "This branch is not reachable because all Nones have already been filtered out")
-
 let sequence_gen =
   let open QCheck.Gen in
   []
@@ -68,7 +60,7 @@ let rec gen_json_string { typ; items; num_items; required; properties; _ } =
       | `Assoc list ->
         list |> List.map fst |> assert_obj_fields required;
         list
-        |> filter_map (gen_field_pair required)
+        |> List.filter_map (gen_field_pair required)
         |> sequence_gen
         |> map (fun commalist ->
           "{" ^ String.concat ", " (List.rev commalist) ^ "}")
