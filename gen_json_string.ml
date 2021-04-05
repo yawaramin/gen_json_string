@@ -13,14 +13,15 @@ type json_schema = {
   typ : string [@key "type"];
 } [@@deriving of_yojson { exn = true }]
 
-let get_or_else default = function
-  | Some value -> value
-  | None -> default
+(* This is the same as [Option.value] except we can use it with [|>]. *)
+let get_or_else default = function Some value -> value | None -> default
 
+(* This tool is not a JSON Schema validation tool, but we do need to do
+   some minimal validation in order to actually generate a valid object. *)
 let assert_obj_fields required names =
   let names = Array.of_list names in
   if Array.exists (fun name -> not (Array.mem name names)) required
-  then invalid_arg "Object must contain all required properties"
+  then invalid_arg "assert_obj: object must contain all required properties"
 
 let null_schema = {
   enum = None;
@@ -71,28 +72,23 @@ let gen_number minimum maximum = match minimum, maximum with
 
 let render_int float = float |> int_of_float |> string_of_int
 
-let rec gen_json_string {
-  enum;
-  items;
-  maximum;
-  max_items;
-  max_length;
-  min_length;
-  min_items;
-  minimum;
-  num_items;
-  properties;
-  required;
-  typ;
-} = match typ with
-  | "null" -> return "null"
-  | "string" -> gen_string min_length max_length enum
-  | "number" -> map string_of_float (gen_number minimum maximum)
-  | "integer" -> map render_int (gen_number minimum maximum)
-  | "boolean" -> map string_of_bool bool
-  | "array" -> gen_array min_items num_items max_items items
-  | "object" -> gen_object required properties
-  | _ -> invalid_arg "Invalid JSON schema type"
+let rec gen_json_string = function
+  | { typ = "null"; _ } ->
+    return "null"
+  | { typ = "string"; min_length; max_length; enum; _ } ->
+    gen_string min_length max_length enum
+  | { typ = "number"; minimum; maximum; _ } ->
+    map string_of_float (gen_number minimum maximum)
+  | { typ = "integer"; minimum; maximum; _ } ->
+    map render_int (gen_number minimum maximum)
+  | { typ = "boolean"; _ } ->
+    map string_of_bool bool
+  | { typ = "array"; min_items; num_items; max_items; items; _ } ->
+    gen_array min_items num_items max_items items
+  | { typ = "object"; required; properties; _ } ->
+    gen_object required properties
+  | { typ; _ } ->
+    invalid_arg ("gen_json_string: invalid JSON Schema type: " ^ typ)
 
 and gen_array_items num_items items =
   items
