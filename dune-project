@@ -16,5 +16,4 @@
     (ocaml (>= 4.08.0))
     (ppx_deriving_yojson (and (>= 3.6.1) (< 4.0.0)))
     (qcheck-core (and (>= 0.17) (< 1.0.0)))
-    (regenerate (and (>= 0.2) (< 1.0.0)))
     (yojson (and (>= 1.7.0) (< 2.0.0)))))
