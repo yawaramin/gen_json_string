@@ -1,4 +1,5 @@
 type json_schema = {
+  enum : (string list option [@default None]);
   items : (json_schema option [@default None]);
   maximum : (float option [@default None]);
   max_items : (int option [@default None]) [@key "maxItems"];
@@ -22,6 +23,7 @@ let assert_obj_fields required names =
   then invalid_arg "Object must contain all required properties"
 
 let null_schema = {
+  enum = None;
   items = None;
   maximum = None;
   max_items = None;
@@ -48,15 +50,18 @@ let rec gen_json_char () =
   | 92 -> gen_json_char ()
   | _ -> int |> char_of_int |> return
 
-let gen_string min_length max_length =
-  let length = match min_length, max_length with
-    | Some min_length, Some max_length -> min_length -- max_length
-    | Some min_length, None -> min_length -- Int.max_int
-    | None, Some max_length -> 0 -- max_length
-    | None, None -> small_nat
-  in
-  let+ string = string_size ~gen:(gen_json_char ()) length in
-  {|"|} ^ string ^ {|"|}
+let gen_string min_length max_length = function
+  | Some enum ->
+    oneofl enum
+  | None ->
+    let length = match min_length, max_length with
+      | Some min_length, Some max_length -> min_length -- max_length
+      | Some min_length, None -> min_length -- Int.max_int
+      | None, Some max_length -> 0 -- max_length
+      | None, None -> small_nat
+    in
+    let+ string = string_size ~gen:(gen_json_char ()) length in
+    {|"|} ^ string ^ {|"|}
 
 let gen_number minimum maximum = match minimum, maximum with
   | Some minimum, Some maximum -> minimum --. maximum
@@ -67,6 +72,7 @@ let gen_number minimum maximum = match minimum, maximum with
 let render_int float = float |> int_of_float |> string_of_int
 
 let rec gen_json_string {
+  enum;
   items;
   maximum;
   max_items;
@@ -80,7 +86,7 @@ let rec gen_json_string {
   typ;
 } = match typ with
   | "null" -> return "null"
-  | "string" -> gen_string min_length max_length
+  | "string" -> gen_string min_length max_length enum
   | "number" -> map string_of_float (gen_number minimum maximum)
   | "integer" -> map render_int (gen_number minimum maximum)
   | "boolean" -> map string_of_bool bool
