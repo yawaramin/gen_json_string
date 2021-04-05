@@ -1,11 +1,11 @@
-let default_length = 10
-
 type json_schema = {
   items : (json_schema option [@default None]);
+  maximum : (float option [@default None]);
   max_items : (int option [@default None]) [@key "maxItems"];
   max_length : (int option [@default None]) [@key "maxLength"];
   min_length : (int option [@default None]) [@key "minLength"];
   min_items : (int option [@default None]) [@key "minItems"];
+  minimum : (float option [@default None]);
   num_items : (int option [@default None]) [@key "numItems"];
   properties : (Yojson.Safe.t [@default `Assoc []]);
   required : (string array [@default [||]]);
@@ -23,10 +23,12 @@ let assert_obj_fields required names =
 
 let null_schema = {
   items = None;
+  maximum = None;
   max_items = None;
   max_length = None;
   min_length = None;
   min_items = None;
+  minimum = None;
   num_items = None;
   properties = `Assoc [];
   required = [||];
@@ -56,33 +58,35 @@ let gen_string min_length max_length =
   let+ string = string_size ~gen:(gen_json_char ()) length in
   {|"|} ^ string ^ {|"|}
 
+let gen_number minimum maximum = match minimum, maximum with
+  | Some minimum, Some maximum -> minimum --. maximum
+  | Some minimum, None -> minimum --. Float.max_float
+  | None, Some maximum -> 0. --. maximum
+  | None, None -> float
+
+let render_int float = float |> int_of_float |> string_of_int
+
 let rec gen_json_string {
   items;
+  maximum;
   max_items;
   max_length;
   min_length;
   min_items;
+  minimum;
   num_items;
   properties;
   required;
   typ;
 } = match typ with
-  | "null" ->
-    return "null"
-  | "string" ->
-    gen_string min_length max_length
-  | "number" ->
-    map string_of_float float
-  | "integer" ->
-    map string_of_int nat
-  | "boolean" ->
-    map string_of_bool bool
-  | "array" ->
-    gen_array min_items num_items max_items items
-  | "object" ->
-    gen_object required properties
-  | _ ->
-    invalid_arg "Invalid JSON schema type"
+  | "null" -> return "null"
+  | "string" -> gen_string min_length max_length
+  | "number" -> map string_of_float (gen_number minimum maximum)
+  | "integer" -> map render_int (gen_number minimum maximum)
+  | "boolean" -> map string_of_bool bool
+  | "array" -> gen_array min_items num_items max_items items
+  | "object" -> gen_object required properties
+  | _ -> invalid_arg "Invalid JSON schema type"
 
 and gen_array_items num_items items =
   items
