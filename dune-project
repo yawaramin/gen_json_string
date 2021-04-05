@@ -18,4 +18,3 @@
     (qcheck-core (and (>= 0.17) (< 1.0.0)))
     (regenerate (and (>= 0.2) (< 1.0.0)))
     (yojson (and (>= 1.7.0) (< 2.0.0)))))
-
